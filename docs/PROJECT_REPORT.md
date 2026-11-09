@@ -57,3 +57,25 @@ The redesigned interface uses a light editorial visual style, horizontal navigat
 ## 9. Conclusion
 
 PixelAI demonstrates how a hosted multimodal model can be integrated into a practical image workflow. It combines image understanding, natural-language editing and version preservation in a single interface.
+
+
+## Week 3: Image Search and Backend Enhancements
+
+### Semantic search approach
+Each image caption is embedded with the configured Gemini embedding model (`gemini-embedding-001`). The resulting numeric vector is stored in a lightweight JSON vector store alongside the image ID and source caption. When a user enters a natural-language query, PixelAI generates a query embedding and computes cosine similarity against the stored caption vectors. Matching images are returned in descending similarity order. A lexical matching fallback keeps search usable if the embedding API is unavailable.
+
+### Backend changes
+The backend now includes a dedicated `vector_store.py` service for persistent embedding upserts, retrieval and cosine similarity. Existing captions can be indexed through a Library action. Version metadata remains stored in SQLite with version numbers assigned per source image, and a database index supports version-history lookups. JSON writes use a temporary file and atomic replacement.
+
+### Architecture diagram
+See `architecture.svg` and `architecture.mmd` in this folder.
+
+### Evaluation checklist
+1. Upload a new image and confirm caption and embedding creation.
+2. Search using a phrase that describes the image without repeating its filename.
+3. Confirm that the relevant image appears near the top of results.
+4. Use the backfill button to index older captions.
+5. Generate an edit and confirm a new version is saved without overwriting the original.
+6. Temporarily remove the API key and verify that the UI reports the issue rather than crashing.
+
+Live search quality depends on the captions, embedding model, API availability and test collection. Run these checks with your own Gemini API key before reporting results.

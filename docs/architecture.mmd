@@ -1,0 +1,10 @@
+flowchart TD
+ U[User / Browser] --> UI[Streamlit UI: Library, Create, History]
+ UI --> GS[Gemini API: captioning, image editing, embeddings]
+ UI --> S[Python service layer]
+ S --> DB[(SQLite: image + version metadata)]
+ S --> FS[(Local image files: uploads + versions)]
+ S --> VS[(JSON vector store: caption embeddings)]
+ UI --> R[Semantic retrieval: query embedding + cosine similarity]
+ R --> VS
+ R --> UI

@@ -103,3 +103,32 @@ Run the lightweight search tests with:
 ```powershell
 python -m unittest discover -s tests -v
 ```
+
+
+## Week 3: Semantic Image Search and Backend Enhancements
+
+PixelAI now creates a Gemini embedding for each generated image caption and stores it in `data/vector_store.json`. Natural-language search embeds the user's query and ranks indexed captions with cosine similarity. The search screen reports the number of indexed captions and can backfill embeddings for older images that already have captions. If embedding generation is temporarily unavailable, keyword matching is used as a fallback and the UI displays a warning.
+
+### Week 3 architecture
+
+See [`docs/architecture.svg`](docs/architecture.svg) for the architecture diagram and [`docs/architecture.mmd`](docs/architecture.mmd) for the editable Mermaid source.
+
+### Embedding configuration
+
+Set `GEMINI_API_KEY` and optionally `GEMINI_EMBEDDING_MODEL=gemini-embedding-001`. The same Gemini key is used for captions, image editing and embeddings. Embeddings are stored locally as JSON vectors keyed by image ID; this is a lightweight vector store, not Chroma or FAISS.
+
+### Re-index older captions
+
+Open Library. If any images have captions but no saved vectors, use **Index N existing caption(s)** to generate and save missing embeddings. New uploads are captioned and embedded automatically.
+
+### Week 3 tests
+
+Run `pytest -q` from the project folder. Unit tests cover cosine similarity and search ranking basics. Live Gemini calls require a valid API key and access to the configured models.
+
+### Data and error handling
+
+The JSON vector store is written atomically to reduce the risk of partial writes. Invalid JSON is handled by starting with an empty index; the UI can then re-index captions. SQLite stores version numbers per source image and has an index on version lookup. Keep the original image separate from generated versions.
+
+### Deployment warning
+
+This prototype stores the database, images and vector JSON on local disk. A hosting service with ephemeral storage can lose these files on restart/redeploy. For a persistent public deployment, move image files to object storage and SQLite/vector data to a persistent database or managed vector service. Add your API key through hosting secrets, never commit it.

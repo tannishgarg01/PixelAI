@@ -15,6 +15,7 @@ def init_db():
         c.execute("""CREATE TABLE IF NOT EXISTS images(
         id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT NOT NULL, path TEXT NOT NULL,
         caption TEXT DEFAULT '', mime_type TEXT DEFAULT 'image/jpeg', created_at TEXT NOT NULL)""")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_versions_image_id ON versions(image_id)")
         c.execute("""CREATE TABLE IF NOT EXISTS versions(
         id INTEGER PRIMARY KEY AUTOINCREMENT, image_id INTEGER NOT NULL, version_no INTEGER NOT NULL,
         path TEXT NOT NULL, prompt TEXT NOT NULL, created_at TEXT NOT NULL,

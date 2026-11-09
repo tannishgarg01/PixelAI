@@ -3,6 +3,7 @@ from google import genai
 
 VISION_MODEL=os.getenv("GEMINI_VISION_MODEL","gemini-2.5-flash")
 IMAGE_MODEL=os.getenv("GEMINI_IMAGE_MODEL","gemini-3.1-flash-image")
+EMBEDDING_MODEL=os.getenv("GEMINI_EMBEDDING_MODEL","gemini-embedding-001")
 
 def client():
     key=os.getenv("GEMINI_API_KEY")
@@ -43,3 +44,21 @@ def edit_image(image_bytes,mime_type,instruction):
             if getattr(block,"type",None)=="image" and getattr(block,"data",None):
                 return base64.b64decode(block.data)
     raise RuntimeError("The model did not return image bytes. Verify image-model access and GEMINI_IMAGE_MODEL.")
+
+
+def embed_text(text, task_type="RETRIEVAL_DOCUMENT"):
+    """Create a normalized semantic-search embedding for a caption or query."""
+    if not (text or "").strip():
+        raise ValueError("Cannot create an embedding for empty text.")
+    response = client().models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text.strip(),
+        config={"task_type": "RETRIEVAL_DOCUMENT", "output_dimensionality": 768},
+    )
+    embedding = getattr(response, "embeddings", None)
+    if not embedding:
+        raise RuntimeError("Gemini returned no embedding.")
+    values = getattr(embedding[0], "values", None)
+    if not values:
+        raise RuntimeError("Gemini returned an empty embedding vector.")
+    return [float(x) for x in values]

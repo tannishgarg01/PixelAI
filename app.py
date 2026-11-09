@@ -3,7 +3,8 @@ from pathlib import Path
 import streamlit as st
 from services.db import init_db, add_image, list_images, get_image, add_version, list_versions, update_caption
 from services.storage import save_upload, save_version
-from services.gemini_service import caption_image, edit_image
+from services.gemini_service import caption_image, edit_image, embed_text
+from services.vector_store import upsert_embedding, count_embeddings, get_embedding
 from services.search import search_images
 
 ROOT = Path(__file__).parent
@@ -111,6 +112,9 @@ if nav == "Library":
                         with st.spinner("Looking closely at your image…"):
                             caption = caption_image(data, up.type or "image/jpeg")
                         update_caption(image_id, caption)
+                        with st.spinner("Creating semantic search embedding…"):
+                            vector = embed_text(caption)
+                            upsert_embedding(image_id, caption, vector)
                         st.success("Added to your library.")
                         st.rerun()
                     except Exception as exc:
@@ -118,8 +122,27 @@ if nav == "Library":
     with search_col:
         st.markdown('<div class="section-kicker">02 / Find something</div><h3>Search by what you remember</h3>', unsafe_allow_html=True)
         query = st.text_input("Search library", placeholder="Try: a dog in a park, sunset, product photo…", label_visibility="collapsed")
-        st.caption("Search uses the image descriptions generated when you upload.")
-    current = search_images(query, records) if query else records
+        st.caption(f"Semantic caption embeddings indexed: {count_embeddings()} · Gemini embedding model")
+        missing_vectors = [r for r in records if not get_embedding(r["id"]) and (r.get("caption") or "").strip()]
+        if missing_vectors and st.button(f"Index {len(missing_vectors)} existing caption(s)", use_container_width=True):
+            if require_key():
+                progress = st.progress(0)
+                errors = []
+                for i, rec in enumerate(missing_vectors, start=1):
+                    try: upsert_embedding(rec["id"], rec["caption"], embed_text(rec["caption"]))
+                    except Exception as exc: errors.append(f"{rec['filename']}: {exc}")
+                    progress.progress(i / len(missing_vectors))
+                if errors: st.error("Some captions could not be indexed: " + " | ".join(errors))
+                else: st.success("All existing captions indexed.")
+                st.rerun()
+    query_vector = None
+    if query.strip() and records and require_key():
+        try:
+            with st.spinner("Understanding your search…"):
+                query_vector = embed_text(query, task_type="RETRIEVAL_QUERY")
+        except Exception as exc:
+            st.warning(f"Semantic search unavailable; using keyword search instead. Details: {exc}")
+    current = search_images(query, records, query_vector) if query else records
     st.markdown(f'<div class="section-kicker">YOUR COLLECTION · {len(current)} RESULT(S)</div>', unsafe_allow_html=True)
     if not current:
         st.info("Nothing here yet. Add your first image above to get started." if not records else "No images match that description. Try a broader phrase.")
